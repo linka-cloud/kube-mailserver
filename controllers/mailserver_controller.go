@@ -151,17 +151,6 @@ func (r *MailServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return r, err
 	}
 
-	// retrieve dkim record
-	var dkimExists bool
-	if err := r.Get(ctx, client.ObjectKeyFromObject(res.MailServer.DNS.DKIM), &dnsv1alpha1.DNSRecord{}); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "unable to fetch DNSRecord")
-			return ctrl.Result{}, err
-		}
-	} else {
-		dkimExists = true
-	}
-
 	if r, ok, err := r.reconcileReplicas(ctx, &s, res); !ok {
 		return r, err
 	}
@@ -171,11 +160,6 @@ func (r *MailServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// set mailserver public IP (e.g. `curl ifconfig.me`) in spf record: v=spf1 a mx ip4:$PUBLIC_IP -all
 	if r, ok, err := r.reconcileSPF(ctx, &s, res); !ok {
 		return r, err
-	}
-
-	if dkimExists {
-		// done
-		return ctrl.Result{}, nil
 	}
 
 	// get dkim key from deployment
@@ -323,11 +307,20 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 			}
 		}
 		if equals {
-			log.V(5).Info("resource up to date", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
+			log.V(5).Info("resource up to date", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
 			continue
 		}
-		log.Info("updating resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
+		log.Info("updating resource", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
 		v.SetResourceVersion(got.GetResourceVersion())
+		// dry-run update to avoid unnecessary update because of default values
+		if err := r.Update(ctx, v, client.DryRunAll); err != nil {
+			log.Error(err, "unable to dry-run update resource")
+			return ctrl.Result{}, false, err
+		}
+		if equality.Semantic.DeepDerivative(v, got) {
+			log.V(5).Info("resource up to date after dry-run", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
+			continue
+		}
 		if err := r.Update(ctx, v); err != nil {
 			log.Error(err, "unable to patch resource", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
 			return ctrl.Result{}, false, err
@@ -366,6 +359,7 @@ func (r *MailServerReconciler) reconcileARecord(ctx context.Context, s *mailv1al
 		ip = svc.Status.LoadBalancer.Ingress[0].IP
 	} else {
 		log.Error(fmt.Errorf("load balancer IP not available yet"), "waiting for load balancer IP")
+		return ctrl.Result{}, false, nil
 	}
 	if s.Status.LoadBalancerIP != ip {
 		s.Status.LoadBalancerIP = ip
@@ -388,7 +382,7 @@ func (r *MailServerReconciler) reconcileARecord(ctx context.Context, s *mailv1al
 				return ctrl.Result{}, false, err
 			}
 		}
-		return ctrl.Result{}, true, nil
+		return ctrl.Result{}, false, nil
 	}
 	if ip != "" && (rec.Spec.A == nil || ip != rec.Spec.A.Target) {
 		rec.Spec.A = resources.MailServerARecord(s, ip).Spec.A
@@ -421,6 +415,7 @@ func (r *MailServerReconciler) reconcileReplicas(ctx context.Context, s *mailv1a
 			log.Error(err, "unable to update status")
 			return ctrl.Result{}, false, err
 		}
+		return ctrl.Result{}, false, nil
 	}
 	return ctrl.Result{}, true, nil
 }
@@ -440,17 +435,31 @@ func (r *MailServerReconciler) reconcileSPF(ctx context.Context, s *mailv1alpha1
 		log.Error(err, "unable to fetch SPF DNSRecord")
 		return ctrl.Result{}, false, err
 	}
-	rec.Spec.TXT.Targets = []string{fmt.Sprintf(spf, strings.TrimSpace(out))}
+	targets := []string{fmt.Sprintf(spf, strings.TrimSpace(out))}
+	if strings.Join(rec.Spec.TXT.Targets, "") == strings.Join(targets, "") {
+		return ctrl.Result{}, true, nil
+	}
+	rec.Spec.TXT.Targets = targets
 	if err := r.Update(ctx, &rec); err != nil {
 		log.Error(err, "unable to update SPF DNSRecord")
 		return ctrl.Result{}, false, err
 	}
-	return ctrl.Result{}, true, nil
+	return ctrl.Result{}, false, nil
 }
 
 func (r *MailServerReconciler) reconcileDKIM(ctx context.Context, s *mailv1alpha1.MailServer, res *resources.Resources) (ctrl.Result, bool, error) {
 	log := ctrl.LoggerFrom(ctx)
-
+	// retrieve dkim record
+	got := &dnsv1alpha1.DNSRecord{}
+	var exists bool
+	if err := r.Get(ctx, client.ObjectKeyFromObject(res.MailServer.DNS.DKIM), got); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "unable to fetch DNSRecord")
+			return ctrl.Result{}, false, err
+		}
+	} else {
+		exists = true
+	}
 	out, ok, err := r.execDeployOut(ctx, res.MailServer.Deployment, fmt.Sprintf("cat /etc/opendkim/keys/%s/mail.txt", s.Spec.Domain))
 	if err != nil {
 		log.Error(err, "unable to retrieve dkim key")
@@ -471,17 +480,29 @@ func (r *MailServerReconciler) reconcileDKIM(ctx context.Context, s *mailv1alpha
 	}
 	rec := resources.MailServerDKIMRecord(s)
 	rec.Spec.TXT.Targets = rr.(*dns.TXT).Txt
+	rec.Default()
+	if got.Spec.TXT != nil && got.Spec.TXT.Name == rec.Spec.TXT.Name && strings.Join(got.Spec.TXT.Targets, " ") == strings.Join(rec.Spec.TXT.Targets, " ") {
+		return ctrl.Result{}, true, nil
+	}
 	if err := ctrl.SetControllerReference(s, rec, r.Scheme); err != nil {
 		log.Error(err, "unable to set controller reference on dkim record")
 		return ctrl.Result{}, false, err
 	}
 
-	if err := r.Create(ctx, rec); err != nil {
-		log.Error(err, "unable to create dkim record")
-		return ctrl.Result{}, false, err
+	if !exists {
+		if err := r.Create(ctx, rec); err != nil {
+			log.Error(err, "unable to create dkim record")
+			return ctrl.Result{}, false, err
+		}
+	} else {
+		rec.SetResourceVersion(got.GetResourceVersion())
+		if err := r.Update(ctx, rec); err != nil {
+			log.Error(err, "unable to update dkim record")
+			return ctrl.Result{}, false, err
+		}
 	}
 
-	return ctrl.Result{}, true, nil
+	return ctrl.Result{}, false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

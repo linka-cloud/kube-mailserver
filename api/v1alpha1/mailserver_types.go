@@ -185,7 +185,7 @@ type MailServerStatus struct {
 	Replicas       int32  `json:"replicas,omitempty"`
 	Selector       string `json:"selector"`
 	VolumeSize     string `json:"volumeSize,omitempty"`
-	LoadBalancerIP string `json:"loadBalancerIPs,omitempty"`
+	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -195,6 +195,7 @@ type MailServerStatus struct {
 // +kubebuilder:printcolumn:name="Domain",type=string,JSONPath=`.status.domain`
 // +kubebuilder:printcolumn:name="Capacity",type=string,JSONPath=`.status.volumeSize`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="IP",type="string",priority=1,JSONPath=".status.loadBalancerIP"
 // +kubebuilder:printcolumn:name="Image",type="string",priority=1,JSONPath=".spec.image"
 
 // MailServer is the Schema for the mailservers API

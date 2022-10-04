@@ -32,6 +32,8 @@ const (
 )
 
 func Labels(s *mailv1alpha1.MailServer, component string) map[string]string {
+	// TODO(adphi): improve labels to match k8s best practices
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
 	return map[string]string{
 		LabelName:      s.Spec.Domain,
 		LabelInstance:  s.Spec.Domain,
