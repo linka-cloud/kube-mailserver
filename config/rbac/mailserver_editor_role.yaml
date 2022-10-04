@@ -1,0 +1,31 @@
+# permissions for end users to edit mailservers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: mailserver-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kube-mailserver
+    app.kubernetes.io/part-of: kube-mailserver
+    app.kubernetes.io/managed-by: kustomize
+  name: mailserver-editor-role
+rules:
+- apiGroups:
+  - mail.linka.cloud
+  resources:
+  - mailservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mail.linka.cloud
+  resources:
+  - mailservers/status
+  verbs:
+  - get

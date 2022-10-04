@@ -1,0 +1,27 @@
+# permissions for end users to view mailservers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: mailserver-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kube-mailserver
+    app.kubernetes.io/part-of: kube-mailserver
+    app.kubernetes.io/managed-by: kustomize
+  name: mailserver-viewer-role
+rules:
+- apiGroups:
+  - mail.linka.cloud
+  resources:
+  - mailservers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - mail.linka.cloud
+  resources:
+  - mailservers/status
+  verbs:
+  - get

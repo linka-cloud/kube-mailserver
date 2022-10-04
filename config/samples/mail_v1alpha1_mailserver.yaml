@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: linka-cloud-dev-ldap-credentials
+  labels:
+    app.kubernetes.io/name: kube-mailserver
+    app.kubernetes.io/instance: linka-cloud-dev
+    app.kubernetes.io/component: ldap-credentials
+    app.kubernetes.io/part-of: linka-cloud-dev
+stringData:
+  bindDN: cn=auth_svc,ou=services,ou=linka-cloud,dc=ad,dc=linka-cloud,dc=dev
+  bindPW: gpeD8JWg3x7ZsvlA7oghB65c1hWYbp1Y9lAGkD4w
+---
+apiVersion: mail.linka.cloud/v1alpha1
+kind: MailServer
+metadata:
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: server-sample
+    app.kubernetes.io/part-of: kube-mailserver
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kube-mailserver
+  name: linka-cloud-dev
+spec:
+  image: docker.io/mailserver/docker-mailserver:latest
+  replicas: 1
+  domain: linka-cloud.dev
+  # spf: v=spf1 a mx -all
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  traefik:
+    entrypoints:
+      http: http
+      https: https

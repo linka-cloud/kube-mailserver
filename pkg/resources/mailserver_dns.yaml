@@ -1,0 +1,196 @@
+# Copyright 2022 Linka Cloud  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MX Record
+# {{ .Domain }}. IN  MX 1 mail.{{ .Domain }}.
+#
+# SRV Record	Description
+# _caldav	    CalDAV Calendaring Support
+# _caldavs   	CalDAV Calendaring Support over SSL
+# _carddav   	CardDAV Address Book Support
+# _carddavs    	CardDAV Address Book Support over SSL
+# _imap    	    IMAP Mail Access Support
+# _imaps   	    IMAP Mail Access Support over SSL
+# _pop3    	    POP3 Mail Access Support
+# _pop3s   	    POP3 Mail Access Support over SSL
+# _submission	SMTP Client Mail Transfer Support
+# _autodiscover	Specifies the server and port responsible for providing autodiscovery for mail services (via MailEnable's Autodiscovery Service)
+#
+# TXT Record
+# {{ .Domain }}.                IN TXT "v=spf1 mx -all"
+# _dmarc.{{ .Domain }}.         IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@{{ .Domain }}; ruf=mailto:postmaster@{{ .Domain }}; fo=0; adkim=r; aspf=r; pct=100; rf=afrf; ri=86400; sp=quarantine"
+# mail._domainkey.{{ .Domain }} IN TXT "v=DKIM1; h=sha256; k=rsa; p= DKIMKEY"
+
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: {{ norm "mx" .Domain }}
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: mx-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  mx:
+    name: "{{ .Domain }}."
+    ttl: 60
+    priority: 10
+    target: "mail.{{ .Domain }}."
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: {{ norm "dmarc" .Domain }}
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: dmarc-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  txt:
+    name: "_dmarc.{{ .Domain }}."
+    ttl: 60
+    targets:
+    # {{ if .DMARC }}
+    - "{{ .DMARC }}"
+    # {{ else }}
+    - "v=DMARC1; p=reject; rua=mailto:postmaster@{{ .Domain }}; ruf=mailto:postmaster@{{ .Domain }}; fo=0; adkim=r; aspf=r; pct=100; rf=afrf; ri=86400; sp=quarantine"
+    # {{ end }}
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: {{ norm "spf" .Domain }}
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: spf-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  txt:
+    name: "{{ .Domain }}."
+    ttl: 60
+    targets:
+    # {{ if .SPF }}
+    - "{{ .SPF }}"
+    # {{ else }}
+    - "v=spf1 mx -all"
+    # {{ end }}
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: "{{ norm "imap" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: imap-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  srv:
+    name: "_imap._tcp.{{ .Domain }}."
+    ttl: 60
+    priority: 10
+    weight: 10
+    port: 143
+    target: "mail.{{ .Domain }}."
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: "{{ norm "imaps" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: imaps-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  srv:
+    name: "_imaps._tcp.{{ .Domain }}."
+    ttl: 60
+    priority: 10
+    weight: 10
+    port: 993
+    target: "mail.{{ .Domain }}."
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: "{{ norm "submission" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: submission-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  srv:
+    name: "_submission._tcp.{{ .Domain }}."
+    ttl: 60
+    priority: 10
+    weight: 10
+    port: 587
+    target: "mail.{{ .Domain }}."
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: "{{ norm "pop3" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: pop3-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  srv:
+    name: "_pop3._tcp.{{ .Domain }}."
+    ttl: 60
+    priority: 10
+    weight: 10
+    port: 110
+    target: "mail.{{ .Domain }}."
+---
+apiVersion: dns.linka.cloud/v1alpha1
+kind: DNSRecord
+metadata:
+  name: "{{ norm "pop3s" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Domain }}"
+    app.kubernetes.io/instance: "{{ .Domain }}"
+    app.kubernetes.io/component: pop3s-record
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  srv:
+    name: "_pop3s._tcp.{{ .Domain }}."
+    ttl: 60
+    priority: 10
+    weight: 10
+    port: 995
+    target: "mail.{{ .Domain }}."

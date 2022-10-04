@@ -1,0 +1,16 @@
+domain: linka.cloud
+layout:
+- go.kubebuilder.io/v3
+projectName: kube-mailserver
+repo: go.linka.cloud/kube-mailserver
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: linka.cloud
+  group: mail
+  kind: MailServer
+  path: go.linka.cloud/kube-mailserver/api/v1alpha1
+  version: v1alpha1
+version: "3"

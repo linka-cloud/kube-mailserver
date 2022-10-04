@@ -1,0 +1,78 @@
+# Copyright 2022 Linka Cloud  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: "{{ norm "autoconfig" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "autoconfig.{{ .Domain }}"
+    app.kubernetes.io/instance: "autoconfig.{{ .Domain }}"
+    app.kubernetes.io/component: https-route
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  entryPoints:
+  - https
+  routes:
+  - kind: Rule
+    match: 'Host(`autoconfig.{{ .Domain }}`) || Host(`autodiscover.{{ .Domain }}`)'
+    services:
+    - name: "autoconfig.{{ .Domain }}"
+      passHostHeader: true
+      port: 80
+  tls:
+    secretName: autoconfig-server-tls
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: "{{ norm "autoconfig-redirect" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "autoconfig.{{ .Domain }}"
+    app.kubernetes.io/instance: "autoconfig.{{ .Domain }}"
+    app.kubernetes.io/component: http-route
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  entryPoints:
+  - http
+  routes:
+  - kind: Rule
+    match: 'Host(`autoconfig.{{ .Domain }}`) || Host(`autodiscover.{{ .Domain }}`)'
+    middlewares:
+    - name: "{{ norm "redirect-to-https" .Domain }}"
+    services:
+    - name: "autoconfig.{{ .Domain }}"
+      passHostHeader: true
+      port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: "{{ norm "redirect-to-https" .Domain }}"
+  namespace: "{{ .Namespace }}"
+  labels:
+    app.kubernetes.io/name: "autoconfig.{{ .Domain }}"
+    app.kubernetes.io/instance: "autoconfig.{{ .Domain }}"
+    app.kubernetes.io/component: redirect-to-https
+    app.kubernetes.io/part-of: "{{ .Domain }}"
+    app.kubernetes.io/managed-by: "kube-mailserver"
+spec:
+  redirectScheme:
+    permanent: true
+    scheme: https
