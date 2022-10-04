@@ -4,13 +4,10 @@ go 1.19
 
 require (
 	github.com/cert-manager/cert-manager v1.9.1
-	github.com/itzg/go-flagsfiller v1.9.1
 	github.com/miekg/dns v1.1.47
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/spf13/cobra v1.5.0
-	github.com/spf13/pflag v1.0.5
 	github.com/traefik/traefik/v2 v2.9.1
 	go.linka.cloud/grpc v0.4.0
 	go.linka.cloud/k8s/dns v0.0.6
@@ -53,9 +50,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/iancoleman/strcase v0.2.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -70,6 +65,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.35.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/traefik/paerser v0.1.9 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect

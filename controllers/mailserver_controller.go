@@ -356,7 +356,7 @@ func (r *MailServerReconciler) reconcileARecord(ctx context.Context, s *mailv1al
 	log := ctrl.LoggerFrom(ctx)
 	// retrieve load balancer IP
 	var svc corev1.Service
-	if err := r.Get(ctx, client.ObjectKeyFromObject(res.MailServer.DNS.A), &svc); err != nil {
+	if err := r.Get(ctx, client.ObjectKeyFromObject(res.MailServer.Service), &svc); err != nil {
 		return ctrl.Result{}, false, err
 	}
 	var ip string
