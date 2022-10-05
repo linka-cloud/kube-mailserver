@@ -59,34 +59,37 @@ func MailServerDeploy(s *mv1alpha1.MailServer) *appsv1.Deployment {
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Command:         []string{"/bin/bash"},
 							Args:            []string{"-c", fmt.Sprintf(`( listmailuser|grep -s $POSTMASTER_EMAIL || (echo "Creating Postmaster email $POSTMASTER_EMAIL" && addmailuser $POSTMASTER_EMAIL $POSTMASTER_PASSWORD)) && ( test -f /tmp/docker-mailserver/opendkim/keys/${MAIL_DOMAIN}/mail.private || (echo "Generating DKIM Private Key" && open-dkim) )`)},
-							Env: []corev1.EnvVar{
-								{
-									Name: "POSTMASTER_EMAIL",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: Normalize("postmaster", s.Spec.Domain),
+							Env: append(
+								[]corev1.EnvVar{
+									{
+										Name: "POSTMASTER_EMAIL",
+										ValueFrom: &corev1.EnvVarSource{
+											SecretKeyRef: &corev1.SecretKeySelector{
+												LocalObjectReference: corev1.LocalObjectReference{
+													Name: Normalize("postmaster", s.Spec.Domain),
+												},
+												Key: "email",
 											},
-											Key: "email",
 										},
 									},
-								},
-								{
-									Name: "POSTMASTER_PASSWORD",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: Normalize("postmaster", s.Spec.Domain),
+									{
+										Name: "POSTMASTER_PASSWORD",
+										ValueFrom: &corev1.EnvVarSource{
+											SecretKeyRef: &corev1.SecretKeySelector{
+												LocalObjectReference: corev1.LocalObjectReference{
+													Name: Normalize("postmaster", s.Spec.Domain),
+												},
+												Key: "password",
 											},
-											Key: "password",
 										},
 									},
+									{
+										Name:  "MAIL_DOMAIN",
+										Value: s.Spec.Domain,
+									},
 								},
-								{
-									Name:  "MAIL_DOMAIN",
-									Value: s.Spec.Domain,
-								},
-							},
+								s.Spec.Env...,
+							),
 							EnvFrom: []corev1.EnvFromSource{
 								{
 									SecretRef: &corev1.SecretEnvSource{
@@ -190,10 +193,10 @@ func MailServerDeploy(s *mv1alpha1.MailServer) *appsv1.Deployment {
 			},
 		},
 	}
-	if s.Spec.LDAP.Enabled && s.Spec.LDAP.Nameserver != nil {
+	if s.Spec.Features.LDAP.Enabled && s.Spec.Features.LDAP.Nameserver != nil {
 		deploy.Spec.Template.Spec.DNSPolicy = corev1.DNSNone
 		deploy.Spec.Template.Spec.DNSConfig = &corev1.PodDNSConfig{
-			Nameservers: []string{string(*s.Spec.LDAP.Nameserver)},
+			Nameservers: []string{string(*s.Spec.Features.LDAP.Nameserver)},
 		}
 	}
 	return deploy

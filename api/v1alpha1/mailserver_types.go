@@ -44,9 +44,10 @@ type MailServerSpec struct {
 	// +kubebuilder:default="docker.io/mailserver/docker-mailserver:9.1.0"
 	Image            string `json:"image,omitempty"`
 	DeploymentConfig `json:",inline"`
+
 	// AutoConfig is the autoconfig deployment configuration
 	// +optional
-	AutoConfig AutoConfigDeployment `json:"autoconfig,omitempty"`
+	AutoConfig AutoConfig `json:"autoconfig,omitempty"`
 	// LoadBalancerIP is the optional IP address to request for the load balancer
 	// +optional
 	LoadBalancerIP *IPv4 `json:"loadBalancerIP,omitempty"`
@@ -60,11 +61,11 @@ type MailServerSpec struct {
 	// IssuerRef is the reference to the Cert Manager issuer to use for the certificate
 	// +kubebuilder:validation:Required
 	IssuerRef cmmeta.ObjectReference `json:"issuerRef"`
-	// LDAP is the optional LDAP configuration
-	// It expects an Active Directory like server
-	// LDAP is not supported yet
+
+	// Features is the list of features to enable
+	// By default all features are enabled
 	// +optional
-	LDAP LDAPConfig `json:"ldap,omitempty"`
+	Features Features `json:"features,omitempty"`
 
 	// TODO(adphi): add custom config mounts support for the MailServer Deployment
 	// Volume is the optional volume configuration
@@ -74,6 +75,67 @@ type MailServerSpec struct {
 	// Traefik is the optional Traefik configuration
 	// +optional
 	Traefik *TraefikConfig `json:"traefik,omitempty"`
+}
+
+type Features struct {
+	// POP3 enables the POP3 protocol
+	// +optional
+	// +kubebuilder:default=false
+	POP3 *bool `json:"pop3,omitempty"`
+	// SpoofProtection enables the Spoof Protection feature
+	// +optional
+	// +kubebuilder:default=true
+	SpoofProtection *bool `json:"spoofProtection,omitempty"`
+	// Clamav enables clamav
+	// +optional
+	// +kubebuilder:default=false
+	Clamav *bool `json:"clamav,omitempty"`
+	// Amavis enables amaivs
+	// +optional
+	// +kubebuilder:default=true
+	Amavis *bool `json:"amavis,omitempty"`
+	// Fail2Ban enables fail2ban
+	// +optional
+	// +kubebuilder:default=true
+	Fail2ban *bool `json:"fail2ban,omitempty"`
+	// ManageSieve enables managesieve
+	// +optional
+	// +kubebuilder:default=true
+	ManageSieve *bool `json:"manageSieve,omitempty"`
+	// Quota enables quota
+	// +optional
+	// +kubebuilder:default=true
+	Quotas *bool `json:"quotas,omitempty"`
+	// Spamassassin enables spamassassin
+	// +optional
+	// +kubebuilder:default=true
+	Spamassassin *bool `json:"spamassassin,omitempty"`
+	// SpamassassinKam enables spamassassin kam
+	// +optional
+	// +kubebuilder:default=false
+	SpamassassinKam *bool `json:"spamassassinKam,omitempty"`
+	// Postgrey enables postgrey
+	// +optional
+	// +kubebuilder:default=false
+	Postgrey *bool `json:"postgrey,omitempty"`
+	// LDAP is the optional LDAP configuration
+	// It expects an Active Directory like server
+	// LDAP is not supported yet
+	// +optional
+	LDAP LDAPConfig `json:"ldap,omitempty"`
+}
+
+type AutoConfig struct {
+	// Enabled is the flag to enable the autoconfig deployment
+	// +optional
+	// +kubebuilder:default=true
+	Enabled *bool `json:"enabled,omitempty"`
+	// Deployment is the autoconfig deployment configuration
+	// +optional
+	Deployment AutoConfigDeployment `json:"deployment,omitempty"`
+	// Ingress is the optional ingress configuration
+	// +optional
+	Ingress IngressConfig `json:"ingress,omitempty"`
 }
 
 type AutoConfigDeployment struct {
@@ -115,9 +177,17 @@ type DeploymentConfig struct {
 	// Resources is the optional resource configuration for the deployment
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	// Env is extra environment variables to pass to the mail server container
+	// It can be used to override the default configuration
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 type TraefikConfig struct {
+	// CRDs enables the Traefik IngressRoute and Middleware Custom Resource Definitions usage
+	// +optional
+	CRDs bool `json:"crds,omitempty"`
+	// EntryPoints is the list of entry points to use for the Traefik IngressRoute
 	Entrypoints TraefikEntrypoints `json:"entrypoints,omitempty"`
 }
 
@@ -130,6 +200,12 @@ type TraefikEntrypoints struct {
 	// +optional
 	// +kubebuilder:default="websecure"
 	HTTPS string `json:"https,omitempty"`
+}
+
+type IngressConfig struct {
+	// Annotations is the optional annotations to add to the ingress
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type VolumeConfig struct {
@@ -186,6 +262,8 @@ type MailServerStatus struct {
 	Selector       string `json:"selector"`
 	VolumeSize     string `json:"volumeSize,omitempty"`
 	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
+	Traefik        *bool  `json:"traefik"`
+	AutoConfig     *bool  `json:"autoconfig"`
 }
 
 // +kubebuilder:object:root=true

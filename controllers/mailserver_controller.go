@@ -27,6 +27,7 @@ import (
 	dnsv1alpha1 "go.linka.cloud/k8s/dns/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,9 +120,9 @@ func (r *MailServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// check for ldap secret
-	if s.Spec.LDAP.Enabled {
+	if s.Spec.Features.LDAP.Enabled {
 		var bindCreds corev1.Secret
-		if err := r.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: s.Spec.LDAP.BindSecret}, &bindCreds); err != nil {
+		if err := r.Get(ctx, client.ObjectKey{Namespace: s.Namespace, Name: s.Spec.Features.LDAP.BindSecret}, &bindCreds); err != nil {
 			log.Error(err, "unable to fetch LDAP bind credentials")
 			return ctrl.Result{}, err
 		}
@@ -207,7 +208,7 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 
 	var restart bool
 
-	var rres = []client.Object{
+	var mres = []client.Object{
 		res.MailServer.ConfigSecret,
 		res.MailServer.Cert,
 		res.MailServer.PVC,
@@ -221,17 +222,32 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 		res.MailServer.DNS.POP3,
 		res.MailServer.DNS.POP3s,
 		res.MailServer.DNS.Submission,
+	}
+	ares := []client.Object{
 		res.AutoConfig.Cert,
 		res.AutoConfig.Deployment,
 		res.AutoConfig.Service,
 		res.AutoConfig.AutoDiscoverRecord,
-		res.AutoConfig.TraefikIngress.Redirect2HTTPs,
-		res.AutoConfig.TraefikIngress.Route,
-		res.AutoConfig.TraefikIngress.RouteTLS,
+	}
+	tres := []client.Object{
+		res.AutoConfig.TraefikIngressRoutes.Redirect2HTTPs,
+		res.AutoConfig.TraefikIngressRoutes.Route,
+		res.AutoConfig.TraefikIngressRoutes.RouteTLS,
+	}
+	autoConfigEnabled := s.Spec.AutoConfig.Enabled == nil || *s.Spec.AutoConfig.Enabled
+	if autoConfigEnabled {
+		mres = append(mres, ares...)
+		if s.Spec.Traefik != nil && s.Spec.Traefik.CRDs {
+			mres = append(mres, tres...)
+		} else {
+			mres = append(mres, res.AutoConfig.Ingress)
+		}
 	}
 
+	ok := true
+
 	// create/update resources
-	for _, v := range rres {
+	for _, v := range mres {
 		// skip nil resources, e.g. traefik ingress
 		if v == nil {
 			continue
@@ -255,7 +271,7 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 			if err := r.Create(ctx, v); err != nil {
 				return ctrl.Result{}, false, err
 			}
-			continue
+			ok = false
 		}
 		var equals bool
 		switch v {
@@ -317,7 +333,7 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 			log.Error(err, "unable to dry-run update resource")
 			return ctrl.Result{}, false, err
 		}
-		if equality.Semantic.DeepDerivative(v, got) {
+		if v != res.MailServer.ConfigSecret && equality.Semantic.DeepDerivative(v, got) {
 			log.V(5).Info("resource up to date after dry-run", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
 			continue
 		}
@@ -325,14 +341,77 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 			log.Error(err, "unable to patch resource", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
 			return ctrl.Result{}, false, err
 		}
+		ok = false
 	}
-	if !restart {
-		return ctrl.Result{}, true, nil
+	if restart {
+		if err := r.restartMailServer(ctx, s, res); err != nil {
+			return ctrl.Result{}, false, err
+		}
+		return ctrl.Result{}, false, nil
 	}
-	if err := r.restartMailServer(ctx, s, res); err != nil {
-		return ctrl.Result{}, false, err
+	if !ok {
+		return ctrl.Result{}, false, nil
 	}
-	return ctrl.Result{}, false, nil
+
+	if !autoConfigEnabled {
+		for _, v := range ares {
+			if err := r.Delete(ctx, v); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					log.Error(err, "unable to delete resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
+					return ctrl.Result{}, false, err
+				}
+			} else {
+				log.Info("deleted resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
+				ok = false
+			}
+		}
+	}
+	if !ok {
+		return ctrl.Result{}, false, nil
+	}
+	if s.Status.AutoConfig == nil || *s.Status.AutoConfig != autoConfigEnabled {
+		s.Status.AutoConfig = &autoConfigEnabled
+		if err := r.Status().Update(ctx, s); err != nil {
+			log.Error(err, "unable to update autoconfig status")
+			return ctrl.Result{}, false, err
+		}
+		return ctrl.Result{}, false, nil
+	}
+	if s.Spec.Traefik == nil || !s.Spec.Traefik.CRDs {
+		for _, v := range tres {
+			if err := r.Delete(ctx, v); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					log.Error(err, "unable to delete resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
+					return ctrl.Result{}, false, err
+				}
+			} else {
+				log.Info("deleted resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
+				ok = false
+			}
+		}
+	} else {
+		if err := r.Delete(ctx, res.AutoConfig.Ingress); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "unable to delete ingress")
+				return ctrl.Result{}, false, err
+			}
+		} else {
+			log.Info("deleted ingress")
+			ok = false
+		}
+	}
+	if !ok {
+		return ctrl.Result{}, false, nil
+	}
+	if s.Status.Traefik == nil || *s.Status.Traefik != (autoConfigEnabled && s.Spec.Traefik.CRDs) {
+		s.Status.Traefik = &s.Spec.Traefik.CRDs
+		if err := r.Status().Update(ctx, s); err != nil {
+			log.Error(err, "unable to update traefik crds status")
+			return ctrl.Result{}, false, err
+		}
+		return ctrl.Result{}, false, nil
+	}
+	return ctrl.Result{}, true, nil
 }
 
 func (r *MailServerReconciler) restartMailServer(ctx context.Context, s *mailv1alpha1.MailServer, res *resources.Resources) error {
@@ -512,6 +591,7 @@ func (r *MailServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		&appsv1.Deployment{},
 		&corev1.Service{},
 		&corev1.PersistentVolumeClaim{},
+		&networkingv1.Ingress{},
 		&dnsv1alpha1.DNSRecord{},
 		&cmv1.Certificate{},
 		&traefikv1alpha1.IngressRoute{},

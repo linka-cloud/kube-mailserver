@@ -24,6 +24,7 @@ import (
 	dnsv1alpha1 "go.linka.cloud/k8s/dns/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 
 	mailv1alpha1 "go.linka.cloud/kube-mailserver/api/v1alpha1"
 )
@@ -40,9 +41,9 @@ func (config *Config) Resources() *Resources {
 	if config.Password == "" {
 		config.Password = RandomPassword()
 	}
-	var ting TraefikIngress
+	var ting TraefikIngressRoutes
 	if config.MailServer.Spec.Traefik != nil {
-		ting = TraefikIngress{
+		ting = TraefikIngressRoutes{
 			Route:          AutoConfigTraefikIngress(config.MailServer),
 			RouteTLS:       AutoConfigTraefikIngressTLS(config.MailServer),
 			Redirect2HTTPs: AutoConfigRedirectToHTTPS(config.MailServer),
@@ -70,11 +71,12 @@ func (config *Config) Resources() *Resources {
 			},
 		},
 		AutoConfig: &AutoConfigResources{
-			Cert:               AutoConfigCert(config.MailServer),
-			AutoDiscoverRecord: AutoConfigSRVRecord(config.MailServer),
-			Service:            AutoConfigService(config.MailServer),
-			Deployment:         AutoConfigDeploy(config.MailServer),
-			TraefikIngress:     ting,
+			Cert:                 AutoConfigCert(config.MailServer),
+			AutoDiscoverRecord:   AutoConfigSRVRecord(config.MailServer),
+			Service:              AutoConfigService(config.MailServer),
+			Deployment:           AutoConfigDeploy(config.MailServer),
+			TraefikIngressRoutes: ting,
+			Ingress:              AutoConfigIngress(config.MailServer),
 		},
 	}
 }
@@ -108,15 +110,15 @@ type MailServerDNS struct {
 }
 
 type AutoConfigResources struct {
-	Cert               *cmv1.Certificate
-	AutoDiscoverRecord *dnsv1alpha1.DNSRecord
-	Service            *corev1.Service
-	Deployment         *appsv1.Deployment
-	TraefikIngress     TraefikIngress
-	// TODO(adphi): kubernetes ingress
+	Cert                 *cmv1.Certificate
+	AutoDiscoverRecord   *dnsv1alpha1.DNSRecord
+	Service              *corev1.Service
+	Deployment           *appsv1.Deployment
+	TraefikIngressRoutes TraefikIngressRoutes
+	Ingress              *networkingv1.Ingress
 }
 
-type TraefikIngress struct {
+type TraefikIngressRoutes struct {
 	Route          *traefikv1alpha1.IngressRoute
 	RouteTLS       *traefikv1alpha1.IngressRoute
 	Redirect2HTTPs *traefikv1alpha1.Middleware

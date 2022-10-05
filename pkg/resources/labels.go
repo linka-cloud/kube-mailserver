@@ -55,10 +55,12 @@ type PT[T any] interface {
 	*T
 }
 
-func V[T any, P PT[T]](p P) T {
-	var v T
+func V[T any, P PT[T]](p P, defaults ...T) (v T) {
 	if p != nil {
-		v = *p
+		return *p
+	}
+	if len(defaults) > 0 {
+		return defaults[0]
 	}
 	return v
 }

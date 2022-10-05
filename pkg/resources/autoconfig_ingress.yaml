@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: https
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  name: "{{ norm "autoconfig" .Domain }}"
+  namespace: "{{ .Namespace }}"
+spec:
+  rules:
+  - host: "autoconfig.{{ .Domain }}"
+    http:
+      paths:
+      - backend:
+          service:
+            name: "{{ norm "autoconfig" .Domain }}"
+            port:
+              number: 80
+        path: /
+        pathType: ImplementationSpecific
+  - host: "autodiscover.{{ .Domain }}"
+    http:
+      paths:
+      - backend:
+          service:
+            name: "{{ norm "autoconfig" .Domain }}"
+            port:
+              number: 80
+        path: /
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - "autoconfig.{{ .Domain }}"
+    - "autodiscover.{{ .Domain }}"
+    secretName: "{{ norm "autoconfig" .Domain "tls" }}"

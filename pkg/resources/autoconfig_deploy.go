@@ -23,51 +23,57 @@ import (
 )
 
 func AutoConfigDeploy(s *mailv1alpha1.MailServer) *appsv1.Deployment {
+	if s.Spec.AutoConfig.Deployment.Image == "" {
+		s.Spec.AutoConfig.Deployment.Image = "docker.io/linkacloud/autoconfig:latest"
+	}
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        Normalize("autoconfig", s.Spec.Domain),
 			Namespace:   s.Namespace,
 			Labels:      Labels(s, "autoconfig"),
-			Annotations: s.Spec.AutoConfig.Annotations,
+			Annotations: s.Spec.AutoConfig.Deployment.Annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: s.Spec.Replicas,
-			Strategy: s.Spec.AutoConfig.Strategy,
+			Strategy: s.Spec.AutoConfig.Deployment.Strategy,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: Labels(s, "autoconfig"),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      Labels(s, "autoconfig"),
-					Annotations: s.Spec.AutoConfig.Annotations,
+					Annotations: s.Spec.AutoConfig.Deployment.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName:        s.Spec.AutoConfig.ServiceAccountName,
-					Affinity:                  s.Spec.AutoConfig.Affinity,
-					SecurityContext:           s.Spec.AutoConfig.SecurityContext,
-					TopologySpreadConstraints: s.Spec.AutoConfig.TopologySpreadConstraints,
-					Tolerations:               s.Spec.AutoConfig.Tolerations,
-					NodeSelector:              s.Spec.AutoConfig.NodeSelector,
+					ServiceAccountName:        s.Spec.AutoConfig.Deployment.ServiceAccountName,
+					Affinity:                  s.Spec.AutoConfig.Deployment.Affinity,
+					SecurityContext:           s.Spec.AutoConfig.Deployment.SecurityContext,
+					TopologySpreadConstraints: s.Spec.AutoConfig.Deployment.TopologySpreadConstraints,
+					Tolerations:               s.Spec.AutoConfig.Deployment.Tolerations,
+					NodeSelector:              s.Spec.AutoConfig.Deployment.NodeSelector,
 					RestartPolicy:             corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
 						{
 							Name:      "autoconfig",
-							Image:     s.Spec.AutoConfig.Image,
-							Resources: s.Spec.AutoConfig.Resources,
-							Env: []corev1.EnvVar{
-								{
-									Name:  "DOMAIN",
-									Value: s.Spec.Domain,
+							Image:     s.Spec.AutoConfig.Deployment.Image,
+							Resources: s.Spec.AutoConfig.Deployment.Resources,
+							Env: append(
+								[]corev1.EnvVar{
+									{
+										Name:  "DOMAIN",
+										Value: s.Spec.Domain,
+									},
+									{
+										Name:  "IMAP_SERVER",
+										Value: "mail." + s.Spec.Domain,
+									},
+									{
+										Name:  "SMTP_SERVER",
+										Value: "mail." + s.Spec.Domain,
+									},
 								},
-								{
-									Name:  "IMAP_SERVER",
-									Value: "mail." + s.Spec.Domain,
-								},
-								{
-									Name:  "SMTP_SERVER",
-									Value: "mail." + s.Spec.Domain,
-								},
-							},
+								s.Spec.AutoConfig.Deployment.Env...,
+							),
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: 1323,

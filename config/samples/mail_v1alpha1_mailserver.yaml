@@ -34,3 +34,5 @@ spec:
     entrypoints:
       http: http
       https: https
+  features:
+    pop3: false
