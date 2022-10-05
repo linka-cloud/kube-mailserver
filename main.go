@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kube_mailserver
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func init() {
 	utilruntime.Must(traefikv1alpha1.AddToScheme(scheme))
 }
 
-func main() {
+func Main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
