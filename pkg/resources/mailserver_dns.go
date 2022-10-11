@@ -36,7 +36,7 @@ func MailServerARecord(s *mv1alpha1.MailServer, ip string) *dnsv1alpha1.DNSRecor
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			A: &dnsv1alpha1.ARecord{
 				Name:   dns.Fqdn("mail." + s.Spec.Domain),
-				Ttl:    60,
+				Ttl:    s.Spec.DNSTTL,
 				Target: ip,
 			},
 		},
@@ -53,7 +53,7 @@ func MailServerMXRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			MX: &dnsv1alpha1.MXRecord{
 				Name:       dns.Fqdn(s.Spec.Domain),
-				Ttl:        60,
+				Ttl:        s.Spec.DNSTTL,
 				Preference: 10,
 				Target:     dns.Fqdn("mail." + s.Spec.Domain),
 			},
@@ -76,7 +76,7 @@ func MailServerDMARCRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			TXT: &dnsv1alpha1.TXTRecord{
 				Name:    dns.Fqdn("_dmarc." + s.Spec.Domain),
-				Ttl:     60,
+				Ttl:     s.Spec.DNSTTL,
 				Targets: []string{dmarc},
 			},
 		},
@@ -94,7 +94,7 @@ func MailServerDKIMRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 			// TODO(adphi): will be parsed from the domain.key file
 			TXT: &dnsv1alpha1.TXTRecord{
 				Name:    dns.Fqdn("mail._domainkey." + s.Spec.Domain),
-				Ttl:     60,
+				Ttl:     s.Spec.DNSTTL,
 				Targets: []string{"v=DKIM1; k=rsa;"},
 			},
 		},
@@ -111,7 +111,7 @@ func MailServerSPFRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			TXT: &dnsv1alpha1.TXTRecord{
 				Name:    dns.Fqdn(s.Spec.Domain),
-				Ttl:     60,
+				Ttl:     s.Spec.DNSTTL,
 				Targets: []string{s.Spec.SPF},
 			},
 		},
@@ -128,7 +128,7 @@ func MailServerIMAPRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			SRV: &dnsv1alpha1.SRVRecord{
 				Name:     dns.Fqdn("_imap._tcp." + s.Spec.Domain),
-				Ttl:      60,
+				Ttl:      s.Spec.DNSTTL,
 				Priority: 10,
 				Weight:   10,
 				Port:     143,
@@ -148,7 +148,7 @@ func MailServerIMAPsRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			SRV: &dnsv1alpha1.SRVRecord{
 				Name:     dns.Fqdn("_imaps._tcp." + s.Spec.Domain),
-				Ttl:      60,
+				Ttl:      s.Spec.DNSTTL,
 				Priority: 10,
 				Weight:   10,
 				Port:     993,
@@ -168,7 +168,7 @@ func MailServerSubmissionRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord 
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			SRV: &dnsv1alpha1.SRVRecord{
 				Name:     dns.Fqdn("_submission._tcp." + s.Spec.Domain),
-				Ttl:      60,
+				Ttl:      s.Spec.DNSTTL,
 				Priority: 10,
 				Weight:   10,
 				Port:     587,
@@ -188,7 +188,7 @@ func MailServerPOP3Record(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			SRV: &dnsv1alpha1.SRVRecord{
 				Name:     dns.Fqdn("_pop3._tcp." + s.Spec.Domain),
-				Ttl:      60,
+				Ttl:      s.Spec.DNSTTL,
 				Priority: 10,
 				Weight:   10,
 				Port:     110,
@@ -208,7 +208,7 @@ func MailServerPOP3sRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			SRV: &dnsv1alpha1.SRVRecord{
 				Name:     dns.Fqdn("_pop3s._tcp." + s.Spec.Domain),
-				Ttl:      60,
+				Ttl:      s.Spec.DNSTTL,
 				Priority: 10,
 				Weight:   10,
 				Port:     995,

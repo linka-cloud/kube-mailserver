@@ -30,6 +30,11 @@ type MailServerSpec struct {
 	// Domain is the mail server domain name
 	// +kubebuilder:validation:Required
 	Domain string `json:"domain,omitempty"`
+	// TODO(adphi): add DisableDNS option
+	// DNSTTL is the TTL for the all the mail server's dns records
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=60
+	DNSTTL uint32 `json:"dnsTTL,omitempty"`
 	// SPF is the optional SPF configuration
 	// If empty, the SPF record will be set to "v=spf1 mx ip4:$PUBLIC_IP -all"
 	// $PUBLIC_IP will be replaced by the public IP of the mail server using `curl ifconfig.me`

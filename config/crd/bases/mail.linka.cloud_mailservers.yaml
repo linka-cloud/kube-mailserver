@@ -2454,6 +2454,12 @@ spec:
                   rf=afrf; ri=86400; sp=quarantine
                 description: DMARC is the optional DMARC configuration
                 type: string
+              dnsTTL:
+                default: 60
+                description: 'TODO(adphi): add DisableDNS option DNSTTL is the TTL
+                  for the all the mail server''s dns records'
+                format: int32
+                type: integer
               domain:
                 description: Domain is the mail server domain name
                 type: string

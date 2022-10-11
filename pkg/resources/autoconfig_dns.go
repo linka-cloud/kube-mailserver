@@ -32,7 +32,7 @@ func AutoConfigSRVRecord(s *mailv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 		Spec: dnsv1alpha1.DNSRecordSpec{
 			SRV: &dnsv1alpha1.SRVRecord{
 				Name:     dns.Fqdn("_autodiscover._tcp." + s.Spec.Domain),
-				Ttl:      60,
+				Ttl:      s.Spec.DNSTTL,
 				Priority: 10,
 				Weight:   10,
 				Port:     443,
