@@ -53,6 +53,9 @@ type MailServerSpec struct {
 	// AutoConfig is the autoconfig deployment configuration
 	// +optional
 	AutoConfig AutoConfig `json:"autoconfig,omitempty"`
+	// LoadBalancerClass is the optional load balancer class to use ofr the service
+	// +optional
+	LoadBalancerClass *string `json:"loadBalancerClass,omitempty"`
 	// LoadBalancerIP is the optional IP address to request for the load balancer
 	// +optional
 	LoadBalancerIP *IPv4 `json:"loadBalancerIP,omitempty"`

@@ -33,6 +33,7 @@ func MailServerService(s *mv1alpha1.MailServer) *corev1.Service {
 			Selector:              Labels(s, "server"),
 			Type:                  corev1.ServiceTypeLoadBalancer,
 			LoadBalancerIP:        string(V(s.Spec.LoadBalancerIP)),
+			LoadBalancerClass:     s.Spec.LoadBalancerClass,
 			ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeLocal,
 			Ports: []corev1.ServicePort{
 				{

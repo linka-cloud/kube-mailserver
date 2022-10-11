@@ -303,6 +303,11 @@ func (in *MailServerSpec) DeepCopyInto(out *MailServerSpec) {
 	*out = *in
 	in.DeploymentConfig.DeepCopyInto(&out.DeploymentConfig)
 	in.AutoConfig.DeepCopyInto(&out.AutoConfig)
+	if in.LoadBalancerClass != nil {
+		in, out := &in.LoadBalancerClass, &out.LoadBalancerClass
+		*out = new(string)
+		**out = **in
+	}
 	if in.LoadBalancerIP != nil {
 		in, out := &in.LoadBalancerIP, &out.LoadBalancerIP
 		*out = new(IPv4)

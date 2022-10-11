@@ -2680,6 +2680,10 @@ spec:
                   type: string
                 description: Labels is the optional labels to add to the deployment
                 type: object
+              loadBalancerClass:
+                description: LoadBalancerClass is the optional load balancer class
+                  to use ofr the service
+                type: string
               loadBalancerIP:
                 description: LoadBalancerIP is the optional IP address to request
                   for the load balancer
