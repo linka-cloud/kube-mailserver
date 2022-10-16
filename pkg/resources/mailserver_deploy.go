@@ -101,7 +101,7 @@ func MailServerDeploy(s *mv1alpha1.MailServer) *appsv1.Deployment {
 							},
 							Resources:       s.Spec.Resources,
 							SecurityContext: &mailServerDeploySecurityContext,
-							VolumeMounts:    mailServerDeployVolumeMounts,
+							VolumeMounts:    append(mailServerDeployVolumeMounts, s.Spec.VolumeMounts...),
 						},
 					},
 					Containers: []corev1.Container{
@@ -134,7 +134,7 @@ func MailServerDeploy(s *mv1alpha1.MailServer) *appsv1.Deployment {
 								},
 							},
 							SecurityContext: &mailServerDeploySecurityContext,
-							VolumeMounts:    mailServerDeployVolumeMounts,
+							VolumeMounts:    append(mailServerDeployVolumeMounts, s.Spec.VolumeMounts...),
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "smtp",
@@ -171,24 +171,27 @@ func MailServerDeploy(s *mv1alpha1.MailServer) *appsv1.Deployment {
 							},
 						},
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "certs",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: Normalize(s.Spec.Domain, "tls"),
+					Volumes: append(
+						[]corev1.Volume{
+							{
+								Name: "certs",
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{
+										SecretName: Normalize(s.Spec.Domain, "tls"),
+									},
+								},
+							},
+							{
+								Name: "mail-data",
+								VolumeSource: corev1.VolumeSource{
+									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: Normalize(s.Spec.Domain, "data"),
+									},
 								},
 							},
 						},
-						{
-							Name: "mail-data",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: Normalize(s.Spec.Domain, "data"),
-								},
-							},
-						},
-					},
+						s.Spec.Volumes...,
+					),
 				},
 			},
 		},

@@ -189,6 +189,10 @@ type DeploymentConfig struct {
 	// It can be used to override the default configuration
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
+	// VolumeMounts is the optional extra volume mounts configuration for the deployment
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// Volumes is the optional extra volumes configuration for the deployment
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 type TraefikConfig struct {

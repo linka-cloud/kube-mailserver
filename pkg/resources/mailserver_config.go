@@ -305,7 +305,7 @@ type MailServerConfig struct {
 	// EnableSpamassassin Enables Spamassassin
 	EnableSpamassassin bool `json:"enableSpamassassin,omitempty" env:"ENABLE_SPAMASSASSIN"`
 	// SpamassassinSpamToInbox: deliver spam messages in the inbox (eventually tagged using SA_SPAM_SUBJECT)
-	SpamassassinSpamToInbox string `json:"spamassassinSpamToInbox,omitempty" env:"SPAMASSASSIN_SPAM_TO_INBOX"`
+	SpamassassinSpamToInbox bool `json:"spamassassinSpamToInbox,omitempty" env:"SPAMASSASSIN_SPAM_TO_INBOX"`
 	// EnableSpamassassinKam: KAM is a 3rd party SpamAssassin ruleset, provided by the McGrail Foundation.
 	// If SpamAssassin is enabled, KAM can be used in addition to the default ruleset.
 	// - **0** => KAM disabled
