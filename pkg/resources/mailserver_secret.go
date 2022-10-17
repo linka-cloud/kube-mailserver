@@ -24,6 +24,10 @@ import (
 )
 
 func MailServerConfigSecret(s *mailv1alpha1.MailServer, bindDN, bindPW string) *corev1.Secret {
+	ldapScheme := "ldaps"
+	if s.Spec.Features.LDAP.StartTLS {
+		ldapScheme = "ldap"
+	}
 	config := MailServerConfig{
 		OverrideHostname:              "mail." + s.Spec.Domain,
 		OneDir:                        P(true),
@@ -84,7 +88,7 @@ func MailServerConfigSecret(s *mailv1alpha1.MailServer, bindDN, bindPW string) *
 
 		EnableLdap:            s.Spec.Features.LDAP.Enabled,
 		LdapStartTLS:          s.Spec.Features.LDAP.StartTLS,
-		LdapServerHost:        fmt.Sprintf("ldaps://%s", s.Spec.Features.LDAP.Host),
+		LdapServerHost:        fmt.Sprintf("%s://%s", ldapScheme, s.Spec.Features.LDAP.Host),
 		LdapSearchBase:        s.Spec.Features.LDAP.SearchBase,
 		LdapBindDN:            bindDN,
 		LdapBindPW:            bindPW,
@@ -106,7 +110,7 @@ func MailServerConfigSecret(s *mailv1alpha1.MailServer, bindDN, bindPW string) *
 		EnableSASLAuthd:            false,
 		SASLAuthdMechanisms:        "ldap",
 		SASLAuthdMechOptions:       "",
-		SASLAuthdLdapServer:        fmt.Sprintf("ldaps://%s", s.Spec.Features.LDAP.Host),
+		SASLAuthdLdapServer:        fmt.Sprintf("%s://%s", ldapScheme, s.Spec.Features.LDAP.Host),
 		SASLAuthdLdapBindDn:        bindDN,
 		SASLAuthdLdapPassword:      bindPW,
 		SASLAuthdLdapSearchBase:    s.Spec.Features.LDAP.SearchBase,
