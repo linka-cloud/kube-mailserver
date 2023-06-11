@@ -16,15 +16,17 @@ package resources
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/sirupsen/logrus"
 	traefikv1alpha1 "github.com/traefik/traefik/v2/pkg/provider/kubernetes/crd/traefik/v1alpha1"
+	appsv1 "go.linka.cloud/k8s/apps/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	dnsv1alpha1 "go.linka.cloud/k8s/dns/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
+	networkingv1 "go.linka.cloud/k8s/networking/v1"
 
 	mailv1alpha1 "go.linka.cloud/kube-mailserver/api/v1alpha1"
 )
@@ -51,12 +53,13 @@ func (config *Config) Resources() *Resources {
 	}
 	return &Resources{
 		MailServer: &MailServerResources{
-			Deployment:   MailServerDeploy(config.MailServer),
-			PVC:          MailServerPVC(config.MailServer),
-			Service:      MailServerService(config.MailServer),
-			CredsSecret:  MailServerCredentials(config.MailServer, config.Password),
-			ConfigSecret: MailServerConfigSecret(config.MailServer, config.BindDN, config.BindPW),
-			Cert:         MailServerCert(config.MailServer),
+			Deployment:     MailServerDeploy(config.MailServer),
+			ConfigOverride: ConfigOverrideConfigMap(config.MailServer),
+			PVC:            MailServerPVC(config.MailServer),
+			Service:        MailServerService(config.MailServer),
+			CredsSecret:    MailServerCredentials(config.MailServer, config.Password),
+			ConfigSecret:   MailServerConfigSecret(config.MailServer, config.BindDN, config.BindPW),
+			Cert:           MailServerCert(config.MailServer),
 			DNS: &MailServerDNS{
 				A:          MailServerARecord(config.MailServer, config.IP),
 				MX:         MailServerMXRecord(config.MailServer),
@@ -86,14 +89,29 @@ type Resources struct {
 	AutoConfig *AutoConfigResources
 }
 
+func (r *Resources) SetSecretsHash() error {
+	b, err := r.MailServer.ConfigSecret.Marshal()
+	if err != nil {
+		return err
+	}
+	h := sha256.New()
+	h.Write(b)
+	if r.MailServer.Deployment.Spec.Template.Annotations == nil {
+		r.MailServer.Deployment.Spec.Template.Annotations = map[string]string{}
+	}
+	r.MailServer.Deployment.Spec.Template.Annotations["linka.cloud/kube-mailserver-config-secret-hash"] = hex.EncodeToString(h.Sum(nil))
+	return nil
+}
+
 type MailServerResources struct {
-	CredsSecret  *corev1.Secret
-	Deployment   *appsv1.Deployment
-	PVC          *corev1.PersistentVolumeClaim
-	Service      *corev1.Service
-	ConfigSecret *corev1.Secret
-	Cert         *cmv1.Certificate
-	DNS          *MailServerDNS
+	CredsSecret    *corev1.Secret
+	Deployment     *appsv1.Deployment
+	ConfigOverride *corev1.ConfigMap
+	PVC            *corev1.PersistentVolumeClaim
+	Service        *corev1.Service
+	ConfigSecret   *corev1.Secret
+	Cert           *cmv1.Certificate
+	DNS            *MailServerDNS
 }
 
 type MailServerDNS struct {

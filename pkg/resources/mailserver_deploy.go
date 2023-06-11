@@ -17,8 +17,9 @@ package resources
 import (
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	"go.linka.cloud/k8s"
+	appsv1 "go.linka.cloud/k8s/apps/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	mv1alpha1 "go.linka.cloud/kube-mailserver/api/v1alpha1"
@@ -27,65 +28,69 @@ import (
 func MailServerDeploy(s *mv1alpha1.MailServer) *appsv1.Deployment {
 	labels := Labels(s, "server")
 	deploy := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        Normalize("mail", s.Spec.Domain),
 			Namespace:   s.Namespace,
 			Labels:      labels,
 			Annotations: s.Spec.Annotations,
 		},
-		Spec: appsv1.DeploymentSpec{
+		Spec: &appsv1.DeploymentSpec{
 			Replicas: s.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: Labels(s, "server"),
 			},
-			Strategy: s.Spec.Strategy,
+			Strategy: &s.Spec.Strategy,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels,
 					Annotations: s.Spec.Annotations,
 				},
-				Spec: corev1.PodSpec{
+				Spec: &corev1.PodSpec{
 					Affinity:                  s.Spec.Affinity,
 					SecurityContext:           s.Spec.SecurityContext,
 					TopologySpreadConstraints: s.Spec.TopologySpreadConstraints,
 					Tolerations:               s.Spec.Tolerations,
 					NodeSelector:              s.Spec.NodeSelector,
-					Hostname:                  "mail",
-					RestartPolicy:             corev1.RestartPolicyAlways,
+					Hostname:                  k8s.Ref("mail"),
+					RestartPolicy:             k8s.Ref(corev1.RestartPolicyAlways),
 					InitContainers: []corev1.Container{
 						{
-							Name:            "setup",
-							Image:           s.Spec.Image,
-							ImagePullPolicy: corev1.PullIfNotPresent,
+							Name:            k8s.Ref("setup"),
+							Image:           &s.Spec.Image,
+							ImagePullPolicy: k8s.Ref(corev1.PullIfNotPresent),
 							Command:         []string{"/bin/bash"},
 							Args:            []string{"-c", fmt.Sprintf(`( listmailuser|grep -s $POSTMASTER_EMAIL || (echo "Creating Postmaster email $POSTMASTER_EMAIL" && addmailuser $POSTMASTER_EMAIL $POSTMASTER_PASSWORD)) && ( test -f /tmp/docker-mailserver/opendkim/keys/${MAIL_DOMAIN}/mail.private || (echo "Generating DKIM Private Key" && open-dkim) )`)},
 							Env: append(
 								[]corev1.EnvVar{
 									{
-										Name: "POSTMASTER_EMAIL",
+										Name: k8s.Ref("POSTMASTER_EMAIL"),
 										ValueFrom: &corev1.EnvVarSource{
 											SecretKeyRef: &corev1.SecretKeySelector{
 												LocalObjectReference: corev1.LocalObjectReference{
-													Name: Normalize("postmaster", s.Spec.Domain),
+													Name: k8s.Ref(Normalize("postmaster", s.Spec.Domain)),
 												},
-												Key: "email",
+												Key: k8s.Ref("email"),
 											},
 										},
 									},
 									{
-										Name: "POSTMASTER_PASSWORD",
+										Name: k8s.Ref("POSTMASTER_PASSWORD"),
 										ValueFrom: &corev1.EnvVarSource{
 											SecretKeyRef: &corev1.SecretKeySelector{
 												LocalObjectReference: corev1.LocalObjectReference{
-													Name: Normalize("postmaster", s.Spec.Domain),
+													Name: k8s.Ref(Normalize("postmaster", s.Spec.Domain)),
 												},
-												Key: "password",
+												Key: k8s.Ref("password"),
 											},
 										},
 									},
 									{
-										Name:  "MAIL_DOMAIN",
-										Value: s.Spec.Domain,
+										Name:  k8s.Ref("MAIL_DOMAIN"),
+										Value: &s.Spec.Domain,
 									},
 								},
 								s.Spec.Env...,
@@ -94,110 +99,90 @@ func MailServerDeploy(s *mv1alpha1.MailServer) *appsv1.Deployment {
 								{
 									SecretRef: &corev1.SecretEnvSource{
 										LocalObjectReference: corev1.LocalObjectReference{
-											Name: Normalize("config", s.Spec.Domain),
+											Name: k8s.Ref(Normalize("config", s.Spec.Domain)),
 										},
 									},
 								},
 							},
-							Resources:       s.Spec.Resources,
+							Resources:       &s.Spec.Resources,
 							SecurityContext: &mailServerDeploySecurityContext,
-							VolumeMounts:    append(mailServerDeployVolumeMounts, s.Spec.VolumeMounts...),
+							VolumeMounts:    mailServerDeployVolumeMounts(s),
 						},
 					},
 					Containers: []corev1.Container{
 						{
-							Name:            "mailserver",
-							Image:           s.Spec.Image,
-							ImagePullPolicy: corev1.PullIfNotPresent,
-							Resources:       corev1.ResourceRequirements{},
+							Name:            k8s.Ref("mailserver"),
+							Image:           &s.Spec.Image,
+							ImagePullPolicy: k8s.Ref(corev1.PullIfNotPresent),
+							// Resources:       &corev1.ResourceRequirements{},
 							EnvFrom: []corev1.EnvFromSource{
 								{
 									SecretRef: &corev1.SecretEnvSource{
 										LocalObjectReference: corev1.LocalObjectReference{
-											Name: Normalize("config", s.Spec.Domain),
+											Name: k8s.Ref(Normalize("config", s.Spec.Domain)),
 										},
 									},
 								},
 							},
 							Env: []corev1.EnvVar{
 								{
-									Name:  "SSL_TYPE",
-									Value: "manual",
+									Name:  k8s.Ref("SSL_TYPE"),
+									Value: k8s.Ref("manual"),
 								},
 								{
-									Name:  "SSL_CERT_PATH",
-									Value: "/etc/mailserver/ssl/tls.crt",
+									Name:  k8s.Ref("SSL_CERT_PATH"),
+									Value: k8s.Ref("/etc/mailserver/ssl/tls.crt"),
 								},
 								{
-									Name:  "SSL_KEY_PATH",
-									Value: "/etc/mailserver/ssl/tls.key",
+									Name:  k8s.Ref("SSL_KEY_PATH"),
+									Value: k8s.Ref("/etc/mailserver/ssl/tls.key"),
 								},
 							},
 							SecurityContext: &mailServerDeploySecurityContext,
-							VolumeMounts:    append(mailServerDeployVolumeMounts, s.Spec.VolumeMounts...),
+							VolumeMounts:    mailServerDeployVolumeMounts(s),
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          "smtp",
-									ContainerPort: 25,
+									Name:          k8s.Ref("smtp"),
+									ContainerPort: k8s.Ref[int32](25),
 								},
 								{
-									Name:          "imap",
-									ContainerPort: 143,
+									Name:          k8s.Ref("imap"),
+									ContainerPort: k8s.Ref[int32](143),
 								},
 								{
-									Name:          "esmtp-implicit",
-									ContainerPort: 465,
+									Name:          k8s.Ref("esmtp-implicit"),
+									ContainerPort: k8s.Ref[int32](465),
 								},
 								{
-									Name:          "esmtp-explicit",
-									ContainerPort: 587,
+									Name:          k8s.Ref("esmtp-explicit"),
+									ContainerPort: k8s.Ref[int32](587),
 								},
 								{
-									Name:          "imap-implicit",
-									ContainerPort: 993,
+									Name:          k8s.Ref("imap-implicit"),
+									ContainerPort: k8s.Ref[int32](993),
 								},
 								{
-									Name:          "pop3",
-									ContainerPort: 110,
+									Name:          k8s.Ref("pop3"),
+									ContainerPort: k8s.Ref[int32](110),
 								},
 								{
-									Name:          "pop3s",
-									ContainerPort: 995,
+									Name:          k8s.Ref("pop3s"),
+									ContainerPort: k8s.Ref[int32](995),
 								},
 								{
-									Name:          "sieve",
-									ContainerPort: 4190,
+									Name:          k8s.Ref("sieve"),
+									ContainerPort: k8s.Ref[int32](4190),
 								},
 							},
 						},
 					},
-					Volumes: append(
-						[]corev1.Volume{
-							{
-								Name: "certs",
-								VolumeSource: corev1.VolumeSource{
-									Secret: &corev1.SecretVolumeSource{
-										SecretName: Normalize(s.Spec.Domain, "tls"),
-									},
-								},
-							},
-							{
-								Name: "mail-data",
-								VolumeSource: corev1.VolumeSource{
-									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-										ClaimName: Normalize(s.Spec.Domain, "data"),
-									},
-								},
-							},
-						},
-						s.Spec.Volumes...,
-					),
+					Volumes: volumes(s),
 				},
 			},
 		},
 	}
 	if s.Spec.Features.LDAP.Enabled && s.Spec.Features.LDAP.Nameserver != nil {
-		deploy.Spec.Template.Spec.DNSPolicy = corev1.DNSNone
+		deploy.Spec.Template.Spec.DNSPolicy = k8s.Ref(corev1.DNSNone)
 		deploy.Spec.Template.Spec.DNSConfig = &corev1.PodDNSConfig{
 			Nameservers: []string{string(*s.Spec.Features.LDAP.Nameserver)},
 		}
@@ -234,26 +219,72 @@ var (
 			Drop: []corev1.Capability{"ALL"},
 		},
 	}
+)
 
-	mailServerDeployVolumeMounts = []corev1.VolumeMount{
+func mailServerDeployVolumeMounts(s *mv1alpha1.MailServer) []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
 		{
-			Name:      "mail-data",
-			MountPath: "/var/mail",
-			SubPath:   "volumes/maildata",
+			Name:      k8s.Ref("mail-data"),
+			MountPath: k8s.Ref("/var/mail"),
+			SubPath:   k8s.Ref("volumes/maildata"),
 		},
 		{
-			Name:      "mail-data",
-			MountPath: "/var/mail-state",
-			SubPath:   "volumes/mailstate",
+			Name:      k8s.Ref("mail-data"),
+			MountPath: k8s.Ref("/var/mail-state"),
+			SubPath:   k8s.Ref("volumes/mailstate"),
 		},
 		{
-			Name:      "mail-data",
-			MountPath: "/tmp/docker-mailserver",
-			SubPath:   "config",
+			Name:      k8s.Ref("mail-data"),
+			MountPath: k8s.Ref("/tmp/docker-mailserver"),
+			SubPath:   k8s.Ref("config"),
 		},
 		{
-			Name:      "certs",
-			MountPath: "/etc/mailserver/ssl/",
+			Name:      k8s.Ref("certs"),
+			MountPath: k8s.Ref("/etc/mailserver/ssl/"),
+			ReadOnly:  k8s.Ref(true),
 		},
 	}
-)
+	if s.Spec.Features.LDAP.Enabled {
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      k8s.Ref(ConfigOverride),
+			MountPath: k8s.Ref("/tmp/docker-mailserver/" + PostfixGroups),
+			SubPath:   k8s.Ref(PostfixGroups),
+			ReadOnly:  k8s.Ref(true),
+		})
+	}
+	return append(mounts, s.Spec.VolumeMounts...)
+}
+
+func volumes(s *mv1alpha1.MailServer) []corev1.Volume {
+	vols := []corev1.Volume{
+		{
+			Name: k8s.Ref("certs"),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: k8s.Ref(Normalize(s.Spec.Domain, "tls")),
+				},
+			},
+		},
+		{
+			Name: k8s.Ref("mail-data"),
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: k8s.Ref(Normalize(s.Spec.Domain, "data")),
+				},
+			},
+		},
+	}
+	if s.Spec.Features.LDAP.Enabled {
+		vols = append(vols, corev1.Volume{
+			Name: k8s.Ref(ConfigOverride),
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: k8s.Ref(Normalize(ConfigOverride, s.Spec.Domain)),
+					},
+				},
+			},
+		})
+	}
+	return append(vols, s.Spec.Volumes...)
+}

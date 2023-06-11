@@ -15,7 +15,6 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -24,17 +23,19 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/miekg/dns"
 	traefikv1alpha1 "github.com/traefik/traefik/v2/pkg/provider/kubernetes/crd/traefik/v1alpha1"
+	"go.linka.cloud/k8s"
+	appsv1 "go.linka.cloud/k8s/apps/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	dnsv1alpha1 "go.linka.cloud/k8s/dns/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
+	networkingv1 "go.linka.cloud/k8s/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/diff"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -50,6 +51,8 @@ const (
 	ownerKey = ".metadata.controller"
 
 	restartAnnotation = "mail.linka.cloud/restart"
+
+	owner = client.FieldOwner("kube-mailserver")
 )
 
 // MailServerReconciler reconciles a MailServer object
@@ -140,6 +143,11 @@ func (r *MailServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	res := conf.Resources()
 
+	if err := res.SetSecretsHash(); err != nil {
+		log.Error(err, "unable to set secrets hash")
+		return ctrl.Result{}, err
+	}
+
 	if r, ok, err := r.reconcileCredentials(ctx, &s, res); !ok {
 		return r, err
 	}
@@ -206,13 +214,12 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 	// generate manifests
 	log.V(5).Info("generating manifests")
 
-	var restart bool
-
 	var mres = []client.Object{
 		res.MailServer.ConfigSecret,
 		res.MailServer.Cert,
 		res.MailServer.PVC,
 		res.MailServer.Deployment,
+		res.MailServer.ConfigOverride,
 		res.MailServer.Service,
 		res.MailServer.DNS.MX,
 		res.MailServer.DNS.SPF,
@@ -255,102 +262,41 @@ func (r *MailServerReconciler) reconcileResources(ctx context.Context, s *mailv1
 		if v, ok := interface{}(v).(interface{ Default() }); ok {
 			v.Default()
 		}
-		log.V(5).Info("reconciling resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
-		if err := ctrl.SetControllerReference(s, v, r.Scheme); err != nil {
-			log.Error(err, "unable to set controller reference")
-			return ctrl.Result{}, false, err
+
+		log.V(5).Info("reconciling", "resource", v.GetObjectKind().GroupVersionKind().Kind, "resourceName", v.GetName())
+		// do not set owner reference for PVCs to preserve the data on deletion
+		if _, ok := v.(*corev1.PersistentVolumeClaim); !ok {
+			if err := ctrl.SetControllerReference(s, v, r.Scheme); err != nil {
+				return ctrl.Result{}, false, err
+			}
 		}
+		want := v.DeepCopyObject().(client.Object)
 		got := v.DeepCopyObject().(client.Object)
-		log.V(5).Info("looking for resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
 		if err := r.Get(ctx, client.ObjectKeyFromObject(got), got); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "unable to fetch resource")
+			log.Info("creating", "resource", v.GetObjectKind().GroupVersionKind().Kind, "resourceName", v.GetName())
+			if !apierrors.IsNotFound(err) {
 				return ctrl.Result{}, false, err
 			}
-			log.Info("creating resource", "kind", v.GetObjectKind().GroupVersionKind().Kind, "name", v.GetName())
-			if err := r.Create(ctx, v); err != nil {
+			if err := r.Patch(ctx, v, client.Apply, owner); err != nil {
 				return ctrl.Result{}, false, err
 			}
-			ok = false
-		}
-		var equals bool
-		switch v {
-		case res.MailServer.ConfigSecret:
-			data1, _ := json.Marshal(v.(*corev1.Secret).Data)
-			data2, _ := json.Marshal(got.(*corev1.Secret).Data)
-			if equals = bytes.Equal(data1, data2); equals {
-				continue
-			}
-			restart = true
-		case res.MailServer.PVC:
-			pvc := got.(*corev1.PersistentVolumeClaim)
-			size := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
-			if s.Spec.Volume.Size != size.String() {
-				log.Info("updating pvc size", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
-				patch := fmt.Sprintf(`{ "spec": { "resources": { "requests": { "storage": "%s" } } } }`, s.Spec.Volume.Size)
-				if err := r.Patch(ctx, got, client.RawPatch(types.MergePatchType, []byte(patch))); err != nil {
-					log.Error(err, "unable to update pvc size")
-					return ctrl.Result{}, false, err
-				}
-				continue
-			}
-			size = pvc.Status.Capacity[corev1.ResourceStorage]
-			if s.Status.VolumeSize != size.String() {
-				s.Status.VolumeSize = size.String()
-				if err := r.Status().Update(ctx, s); err != nil {
-					log.Error(err, "unable to update volume size status")
-					return ctrl.Result{}, false, err
-				}
-				continue
-			}
-			continue
-		default:
-			switch v := v.(type) {
-			case *cmv1.Certificate:
-				equals = equality.Semantic.DeepDerivative(v.Spec, got.(*cmv1.Certificate).Spec)
-			case *appsv1.Deployment:
-				equals = equality.Semantic.DeepDerivative(v.Spec, got.(*appsv1.Deployment).Spec)
-			case *corev1.Service:
-				equals = equality.Semantic.DeepDerivative(v.Spec, got.(*corev1.Service).Spec)
-			case *dnsv1alpha1.DNSRecord:
-				equals = equality.Semantic.DeepDerivative(v.Spec, got.(*dnsv1alpha1.DNSRecord).Spec)
-			case *traefikv1alpha1.IngressRoute:
-				equals = equality.Semantic.DeepDerivative(v.Spec, got.(*traefikv1alpha1.IngressRoute).Spec)
-			case *traefikv1alpha1.Middleware:
-				equals = equality.Semantic.DeepDerivative(v.Spec, got.(*traefikv1alpha1.Middleware).Spec)
-			default:
-				equals = equality.Semantic.DeepDerivative(v, got)
-			}
-		}
-		if equals {
-			log.V(5).Info("resource up to date", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
 			continue
 		}
-		log.Info("updating resource", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
-		v.SetResourceVersion(got.GetResourceVersion())
-		// dry-run update to avoid unnecessary update because of default values
-		if err := r.Update(ctx, v, client.DryRunAll); err != nil {
-			log.Error(err, "unable to dry-run update resource")
+		if err := r.Patch(ctx, want, client.Apply, owner, client.DryRunAll); err != nil {
 			return ctrl.Result{}, false, err
 		}
-		if v != res.MailServer.ConfigSecret && equality.Semantic.DeepDerivative(v, got) {
-			log.V(5).Info("resource up to date after dry-run", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
+		want.SetManagedFields(nil)
+		got.SetManagedFields(nil)
+		if equality.Semantic.DeepDerivative(want, got) {
+			log.V(5).Info("no changes", "resource", got.GetObjectKind().GroupVersionKind().Kind, "resourceName", v.GetName())
 			continue
 		}
-		if err := r.Update(ctx, v); err != nil {
-			log.Error(err, "unable to patch resource", "kind", got.GetObjectKind().GroupVersionKind().Kind, "name", got.GetName())
+		log.Info("diff", "resource", v.GetObjectKind().GroupVersionKind().Kind, "resourceName", v.GetName())
+		fmt.Println(diff.ObjectReflectDiff(got, want))
+		log.Info("applying", "resource", v.GetObjectKind().GroupVersionKind().Kind, "resourceName", v.GetName())
+		if err := r.Patch(ctx, v, client.Apply, owner); err != nil {
 			return ctrl.Result{}, false, err
 		}
-		ok = false
-	}
-	if restart {
-		if err := r.restartMailServer(ctx, s, res); err != nil {
-			return ctrl.Result{}, false, err
-		}
-		return ctrl.Result{}, false, nil
-	}
-	if !ok {
-		return ctrl.Result{}, false, nil
 	}
 
 	if !autoConfigEnabled {
@@ -435,7 +381,7 @@ func (r *MailServerReconciler) reconcileARecord(ctx context.Context, s *mailv1al
 	if s.Spec.OverrideIP != nil {
 		ip = string(*s.Spec.OverrideIP)
 	} else if len(svc.Status.LoadBalancer.Ingress) != 0 {
-		ip = svc.Status.LoadBalancer.Ingress[0].IP
+		ip = k8s.Value(svc.Status.LoadBalancer.Ingress[0].IP)
 	} else {
 		log.Error(fmt.Errorf("load balancer IP not available yet"), "waiting for load balancer IP")
 		return ctrl.Result{}, false, nil
@@ -487,8 +433,8 @@ func (r *MailServerReconciler) reconcileReplicas(ctx context.Context, s *mailv1a
 		return reconcile.Result{}, false, err
 	}
 
-	if deploy.Status.AvailableReplicas != s.Status.Replicas {
-		s.Status.Replicas = deploy.Status.AvailableReplicas
+	if k8s.Value(deploy.Status.AvailableReplicas) != s.Status.Replicas {
+		s.Status.Replicas = k8s.Value(deploy.Status.AvailableReplicas)
 		s.Status.Selector = selector.String()
 		if err := r.Status().Update(ctx, s); err != nil {
 			log.Error(err, "unable to update status")

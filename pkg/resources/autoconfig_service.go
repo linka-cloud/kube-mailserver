@@ -15,7 +15,8 @@
 package resources
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	"go.linka.cloud/k8s"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -24,17 +25,21 @@ import (
 
 func AutoConfigService(s *mailv1alpha1.MailServer) *corev1.Service {
 	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("autoconfig", s.Spec.Domain),
 			Namespace: s.Namespace,
 			Labels:    Labels(s, "service"),
 		},
-		Spec: corev1.ServiceSpec{
+		Spec: &corev1.ServiceSpec{
 			Selector: Labels(s, "autoconfig"),
 			Ports: []corev1.ServicePort{
 				{
-					Name:       "http",
-					Port:       80,
+					Name:       k8s.Ref("http"),
+					Port:       k8s.Ref[int32](80),
 					TargetPort: intstr.FromInt(1323),
 				},
 			},

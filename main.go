@@ -22,6 +22,7 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	traefikv1alpha1 "github.com/traefik/traefik/v2/pkg/provider/kubernetes/crd/traefik/v1alpha1"
 	"go.linka.cloud/grpc/logger"
+	"go.linka.cloud/k8s"
 	dnsv1alpha1 "go.linka.cloud/k8s/dns/api/v1alpha1"
 	"k8s.io/client-go/kubernetes"
 
@@ -31,7 +32,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
@@ -45,7 +45,9 @@ var (
 )
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	// utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+
+	utilruntime.Must(k8s.AddToScheme(scheme))
 
 	utilruntime.Must(mailv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme

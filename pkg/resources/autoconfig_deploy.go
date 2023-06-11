@@ -15,8 +15,9 @@
 package resources
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	"go.linka.cloud/k8s"
+	appsv1 "go.linka.cloud/k8s/apps/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	mailv1alpha1 "go.linka.cloud/kube-mailserver/api/v1alpha1"
@@ -27,15 +28,19 @@ func AutoConfigDeploy(s *mailv1alpha1.MailServer) *appsv1.Deployment {
 		s.Spec.AutoConfig.Deployment.Image = "docker.io/linkacloud/autoconfig:latest"
 	}
 	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        Normalize("autoconfig", s.Spec.Domain),
 			Namespace:   s.Namespace,
 			Labels:      Labels(s, "autoconfig"),
 			Annotations: s.Spec.AutoConfig.Deployment.Annotations,
 		},
-		Spec: appsv1.DeploymentSpec{
+		Spec: &appsv1.DeploymentSpec{
 			Replicas: s.Spec.Replicas,
-			Strategy: s.Spec.AutoConfig.Deployment.Strategy,
+			Strategy: &s.Spec.AutoConfig.Deployment.Strategy,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: Labels(s, "autoconfig"),
 			},
@@ -44,40 +49,40 @@ func AutoConfigDeploy(s *mailv1alpha1.MailServer) *appsv1.Deployment {
 					Labels:      Labels(s, "autoconfig"),
 					Annotations: s.Spec.AutoConfig.Deployment.Annotations,
 				},
-				Spec: corev1.PodSpec{
-					ServiceAccountName:        s.Spec.AutoConfig.Deployment.ServiceAccountName,
+				Spec: &corev1.PodSpec{
+					ServiceAccountName:        &s.Spec.AutoConfig.Deployment.ServiceAccountName,
 					Affinity:                  s.Spec.AutoConfig.Deployment.Affinity,
 					SecurityContext:           s.Spec.AutoConfig.Deployment.SecurityContext,
 					TopologySpreadConstraints: s.Spec.AutoConfig.Deployment.TopologySpreadConstraints,
 					Tolerations:               s.Spec.AutoConfig.Deployment.Tolerations,
 					NodeSelector:              s.Spec.AutoConfig.Deployment.NodeSelector,
-					RestartPolicy:             corev1.RestartPolicyAlways,
+					RestartPolicy:             k8s.Ref(corev1.RestartPolicyAlways),
 					Containers: []corev1.Container{
 						{
-							Name:      "autoconfig",
-							Image:     s.Spec.AutoConfig.Deployment.Image,
-							Resources: s.Spec.AutoConfig.Deployment.Resources,
+							Name:      k8s.Ref("autoconfig"),
+							Image:     &s.Spec.AutoConfig.Deployment.Image,
+							Resources: &s.Spec.AutoConfig.Deployment.Resources,
 							Env: append(
 								[]corev1.EnvVar{
 									{
-										Name:  "DOMAIN",
-										Value: s.Spec.Domain,
+										Name:  k8s.Ref("DOMAIN"),
+										Value: &s.Spec.Domain,
 									},
 									{
-										Name:  "IMAP_SERVER",
-										Value: "mail." + s.Spec.Domain,
+										Name:  k8s.Ref("IMAP_SERVER"),
+										Value: k8s.Ref("mail." + s.Spec.Domain),
 									},
 									{
-										Name:  "SMTP_SERVER",
-										Value: "mail." + s.Spec.Domain,
+										Name:  k8s.Ref("SMTP_SERVER"),
+										Value: k8s.Ref("mail." + s.Spec.Domain),
 									},
 								},
 								s.Spec.AutoConfig.Deployment.Env...,
 							),
 							Ports: []corev1.ContainerPort{
 								{
-									ContainerPort: 1323,
-									Protocol:      corev1.ProtocolTCP,
+									ContainerPort: k8s.Ref[int32](1323),
+									Protocol:      k8s.Ref(corev1.ProtocolTCP),
 								},
 							},
 							VolumeMounts: s.Spec.AutoConfig.Deployment.VolumeMounts,

@@ -15,7 +15,7 @@
 package resources
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -28,17 +28,21 @@ func MailServerPVC(s *mv1alpha1.MailServer) *corev1.PersistentVolumeClaim {
 		storageClassName = &s.Spec.Volume.StorageClass
 	}
 	return &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize(s.Spec.Domain, "data"),
 			Namespace: s.Namespace,
 			Labels:    Labels(s, "storage"),
 		},
-		Spec: corev1.PersistentVolumeClaimSpec{
+		Spec: &corev1.PersistentVolumeClaimSpec{
 			StorageClassName: storageClassName,
 			AccessModes: []corev1.PersistentVolumeAccessMode{
 				s.Spec.Volume.AccessMode,
 			},
-			Resources: corev1.ResourceRequirements{
+			Resources: &corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse(s.Spec.Volume.Size),
 				},

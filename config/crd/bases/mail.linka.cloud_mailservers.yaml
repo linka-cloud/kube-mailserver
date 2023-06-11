@@ -4346,7 +4346,7 @@ spec:
                     type: boolean
                 type: object
               image:
-                default: docker.io/mailserver/docker-mailserver:9.1.0
+                default: docker.io/mailserver/docker-mailserver:11.2.0
                 description: Image is the docker-mailserver image to use
                 type: string
               issuerRef:
@@ -4877,8 +4877,7 @@ spec:
                     type: object
                 type: object
               volume:
-                description: 'TODO(adphi): add custom config mounts support for the
-                  MailServer Deployment Volume is the optional volume configuration'
+                description: Volume is the optional volume configuration
                 properties:
                   accessMode:
                     default: ReadWriteMany

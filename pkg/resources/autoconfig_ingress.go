@@ -15,7 +15,8 @@
 package resources
 
 import (
-	networkingv1 "k8s.io/api/networking/v1"
+	"go.linka.cloud/k8s"
+	networkingv1 "go.linka.cloud/k8s/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	mailv1alpha1 "go.linka.cloud/kube-mailserver/api/v1alpha1"
@@ -43,18 +44,18 @@ func AutoConfigIngress(s *mailv1alpha1.MailServer) *networkingv1.Ingress {
 		host := v + s.Spec.Domain
 		hosts = append(hosts, host)
 		rules = append(rules, networkingv1.IngressRule{
-			Host: host,
+			Host: &host,
 			IngressRuleValue: networkingv1.IngressRuleValue{
 				HTTP: &networkingv1.HTTPIngressRuleValue{
 					Paths: []networkingv1.HTTPIngressPath{
 						{
-							Path:     "/",
-							PathType: P(networkingv1.PathTypeImplementationSpecific),
-							Backend: networkingv1.IngressBackend{
+							Path:     k8s.Ref("/"),
+							PathType: k8s.Ref(networkingv1.PathTypeImplementationSpecific),
+							Backend: &networkingv1.IngressBackend{
 								Service: &networkingv1.IngressServiceBackend{
-									Name: Normalize("autoconfig", s.Spec.Domain),
-									Port: networkingv1.ServiceBackendPort{
-										Number: 80,
+									Name: k8s.Ref(Normalize("autoconfig", s.Spec.Domain)),
+									Port: &networkingv1.ServiceBackendPort{
+										Number: k8s.Ref[int32](80),
 									},
 								},
 							},
@@ -65,18 +66,22 @@ func AutoConfigIngress(s *mailv1alpha1.MailServer) *networkingv1.Ingress {
 		})
 	}
 	return &networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "Ingress",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        Normalize("autoconfig", s.Spec.Domain),
 			Namespace:   s.Namespace,
 			Labels:      Labels(s, "ingress"),
 			Annotations: annotations,
 		},
-		Spec: networkingv1.IngressSpec{
+		Spec: &networkingv1.IngressSpec{
 			Rules: rules,
 			TLS: []networkingv1.IngressTLS{
 				{
 					Hosts:      hosts,
-					SecretName: Normalize("autoconfig", s.Spec.Domain, "tls"),
+					SecretName: k8s.Ref(Normalize("autoconfig", s.Spec.Domain, "tls")),
 				},
 			},
 		},

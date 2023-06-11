@@ -20,7 +20,7 @@
 package v1alpha1
 
 import (
-	"k8s.io/api/core/v1"
+	"go.linka.cloud/k8s/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 

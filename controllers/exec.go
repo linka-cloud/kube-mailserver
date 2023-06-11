@@ -21,8 +21,9 @@ import (
 	"io"
 	"net/http"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	"go.linka.cloud/k8s"
+	appsv1 "go.linka.cloud/k8s/apps/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
@@ -41,7 +42,7 @@ func (r *MailServerReconciler) execDeployOut(ctx context.Context, deploy *appsv1
 		return "", false, nil
 	}
 
-	if pods.Items[0].Status.Phase != corev1.PodRunning {
+	if k8s.Value(pods.Items[0].Status.Phase) != corev1.PodRunning {
 		log.V(5).Info("mail server pod not running yet")
 		return "", false, nil
 	}

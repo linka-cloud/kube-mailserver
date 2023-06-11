@@ -16,14 +16,18 @@ package v1alpha1
 
 import (
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	appsv1 "go.linka.cloud/k8s/apps/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // IPv4 is used for validation of an IPv6 address.
 // +kubebuilder:validation:Pattern="^((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))$"
 type IPv4 string
+
+func (i IPv4) String() string {
+	return string(i)
+}
 
 // MailServerSpec defines the desired state of MailServer
 type MailServerSpec struct {
@@ -46,7 +50,7 @@ type MailServerSpec struct {
 	DMARC string `json:"dmarc,omitempty"`
 	// Image is the docker-mailserver image to use
 	// +kubebuilder:validation:Required
-	// +kubebuilder:default="docker.io/mailserver/docker-mailserver:9.1.0"
+	// +kubebuilder:default="docker.io/mailserver/docker-mailserver:11.2.0"
 	Image            string `json:"image,omitempty"`
 	DeploymentConfig `json:",inline"`
 
@@ -75,7 +79,6 @@ type MailServerSpec struct {
 	// +optional
 	Features Features `json:"features,omitempty"`
 
-	// TODO(adphi): add custom config mounts support for the MailServer Deployment
 	// Volume is the optional volume configuration
 	// +optional
 	Volume VolumeConfig `json:"volume,omitempty"`
@@ -190,8 +193,10 @@ type DeploymentConfig struct {
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
 	// VolumeMounts is the optional extra volume mounts configuration for the deployment
+	// +optional
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 	// Volumes is the optional extra volumes configuration for the deployment
+	// +optional
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 

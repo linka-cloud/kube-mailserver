@@ -25,6 +25,10 @@ import (
 
 func AutoConfigTraefikIngressTLS(s *mailv1alpha1.MailServer) *traefikv1alpha1.IngressRoute {
 	return &traefikv1alpha1.IngressRoute{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "traefik.containo.us/v1alpha1",
+			Kind:       "IngressRoute",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("autoconfig", s.Spec.Domain, "tls"),
 			Namespace: s.Namespace,
@@ -57,6 +61,10 @@ func AutoConfigTraefikIngressTLS(s *mailv1alpha1.MailServer) *traefikv1alpha1.In
 
 func AutoConfigTraefikIngress(s *mailv1alpha1.MailServer) *traefikv1alpha1.IngressRoute {
 	return &traefikv1alpha1.IngressRoute{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "traefik.containo.us/v1alpha1",
+			Kind:       "IngressRoute",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("autoconfig", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -92,6 +100,10 @@ func AutoConfigTraefikIngress(s *mailv1alpha1.MailServer) *traefikv1alpha1.Ingre
 
 func AutoConfigRedirectToHTTPS(s *mailv1alpha1.MailServer) *traefikv1alpha1.Middleware {
 	return &traefikv1alpha1.Middleware{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "traefik.containo.us/v1alpha1",
+			Kind:       "Middleware",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("redirect-to-https", s.Spec.Domain),
 			Namespace: s.Namespace,

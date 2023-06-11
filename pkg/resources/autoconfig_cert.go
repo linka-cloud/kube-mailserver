@@ -23,6 +23,10 @@ import (
 
 func AutoConfigCert(s *mailv1alpha1.MailServer) *cmv1.Certificate {
 	return &cmv1.Certificate{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "cert-manager.io/v1",
+			Kind:       "Certificate",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("autoconfig", s.Spec.Domain),
 			Namespace: s.Namespace,

@@ -24,6 +24,10 @@ import (
 
 func AutoConfigSRVRecord(s *mailv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("autoconfig", s.Spec.Domain),
 			Namespace: s.Namespace,

@@ -17,7 +17,7 @@ package resources
 import (
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	mv1alpha1 "go.linka.cloud/kube-mailserver/api/v1alpha1"
@@ -28,6 +28,10 @@ func MailServerCredentials(s *mv1alpha1.MailServer, password string) *corev1.Sec
 		password = RandomPassword()
 	}
 	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("postmaster", s.Spec.Domain),
 			Namespace: s.Namespace,

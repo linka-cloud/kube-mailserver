@@ -28,6 +28,10 @@ import (
 
 func MailServerARecord(s *mv1alpha1.MailServer, ip string) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("mail", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -45,6 +49,10 @@ func MailServerARecord(s *mv1alpha1.MailServer, ip string) *dnsv1alpha1.DNSRecor
 
 func MailServerMXRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("mx", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -68,6 +76,10 @@ func MailServerDMARCRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	}
 	dmarc = parseDMARC(s)
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("dmarc", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -85,6 +97,10 @@ func MailServerDMARCRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 
 func MailServerDKIMRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("dkim", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -103,6 +119,10 @@ func MailServerDKIMRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 
 func MailServerSPFRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("spf", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -120,6 +140,10 @@ func MailServerSPFRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 
 func MailServerIMAPRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("imap", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -140,6 +164,10 @@ func MailServerIMAPRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 
 func MailServerIMAPsRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("imaps", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -160,6 +188,10 @@ func MailServerIMAPsRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 
 func MailServerSubmissionRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("submission", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -180,6 +212,10 @@ func MailServerSubmissionRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord 
 
 func MailServerPOP3Record(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("pop3", s.Spec.Domain),
 			Namespace: s.Namespace,
@@ -200,6 +236,10 @@ func MailServerPOP3Record(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 
 func MailServerPOP3sRecord(s *mv1alpha1.MailServer) *dnsv1alpha1.DNSRecord {
 	return &dnsv1alpha1.DNSRecord{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "dns.linka.cloud/v1alpha1",
+			Kind:       "DNSRecord",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("pop3s", s.Spec.Domain),
 			Namespace: s.Namespace,

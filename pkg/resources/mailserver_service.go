@@ -15,7 +15,8 @@
 package resources
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	"go.linka.cloud/k8s"
+	corev1 "go.linka.cloud/k8s/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -24,56 +25,60 @@ import (
 
 func MailServerService(s *mv1alpha1.MailServer) *corev1.Service {
 	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      Normalize("mail", s.Spec.Domain),
 			Namespace: s.Namespace,
 			Labels:    Labels(s, "service"),
 		},
-		Spec: corev1.ServiceSpec{
+		Spec: &corev1.ServiceSpec{
 			Selector:              Labels(s, "server"),
-			Type:                  corev1.ServiceTypeLoadBalancer,
-			LoadBalancerIP:        string(V(s.Spec.LoadBalancerIP)),
+			Type:                  k8s.Ref(corev1.ServiceTypeLoadBalancer),
+			LoadBalancerIP:        k8s.Ref(s.Spec.LoadBalancerIP.String()),
 			LoadBalancerClass:     s.Spec.LoadBalancerClass,
-			ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeLocal,
+			ExternalTrafficPolicy: k8s.Ref(corev1.ServiceExternalTrafficPolicyTypeLocal),
 			Ports: []corev1.ServicePort{
 				{
-					Name:       "smtp",
-					Port:       25,
+					Name:       k8s.Ref("smtp"),
+					Port:       k8s.Ref[int32](25),
 					TargetPort: intstr.IntOrString{IntVal: 25},
 				},
 				{
-					Name:       "imap",
-					Port:       143,
+					Name:       k8s.Ref("imap"),
+					Port:       k8s.Ref[int32](143),
 					TargetPort: intstr.IntOrString{IntVal: 143},
 				},
 				{
-					Name:       "esmtp-implicit",
-					Port:       465,
+					Name:       k8s.Ref("esmtp-implicit"),
+					Port:       k8s.Ref[int32](465),
 					TargetPort: intstr.IntOrString{IntVal: 465},
 				},
 				{
-					Name:       "esmtp-explicit",
-					Port:       587,
+					Name:       k8s.Ref("esmtp-explicit"),
+					Port:       k8s.Ref[int32](587),
 					TargetPort: intstr.IntOrString{IntVal: 587},
 				},
 				{
-					Name:       "imap-implicit",
-					Port:       993,
+					Name:       k8s.Ref("imap-implicit"),
+					Port:       k8s.Ref[int32](993),
 					TargetPort: intstr.IntOrString{IntVal: 993},
 				},
 				{
-					Name:       "pop3",
-					Port:       110,
+					Name:       k8s.Ref("pop3"),
+					Port:       k8s.Ref[int32](110),
 					TargetPort: intstr.IntOrString{IntVal: 110},
 				},
 				{
-					Name:       "pop3s",
-					Port:       995,
+					Name:       k8s.Ref("pop3s"),
+					Port:       k8s.Ref[int32](995),
 					TargetPort: intstr.IntOrString{IntVal: 995},
 				},
 				{
-					Name:       "sieve",
-					Port:       4190,
+					Name:       k8s.Ref("sieve"),
+					Port:       k8s.Ref[int32](4190),
 					TargetPort: intstr.IntOrString{IntVal: 4190},
 				},
 			},
