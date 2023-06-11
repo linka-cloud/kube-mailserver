@@ -24,6 +24,7 @@ import (
 	"go.linka.cloud/grpc/logger"
 	"go.linka.cloud/k8s"
 	dnsv1alpha1 "go.linka.cloud/k8s/dns/api/v1alpha1"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -78,6 +79,38 @@ func Main() {
 	restConfig := ctrl.GetConfigOrDie()
 
 	goClient := kubernetes.NewForConfigOrDie(restConfig)
+
+	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
+
+	// check if cert-manager, k8s-dns-manager and traefik are installed
+	gvks := []GroupVersionKind{
+		{
+			Group:    "cert-manager.io",
+			Version:  "v1",
+			Kind:     "Certificate",
+			Required: true,
+		},
+		{
+			Group:    "dns.linka.cloud",
+			Version:  "v1alpha1",
+			Kind:     "DNSRecord",
+			Required: true,
+		},
+		{
+			Group:   "traefik.containo.us",
+			Version: "v1alpha1",
+			Kind:    "IngressRoute",
+		},
+		{
+			Group:   "traefik.containo.us",
+			Version: "v1alpha1",
+			Kind:    "Middleware",
+		},
+	}
+	if err := CheckGroupVersionKinds(ctrl.LoggerInto(ctx, setupLog), discoveryClient, gvks...); err != nil {
+		setupLog.Error(err, "unable to check if cert-manager, k8s-dns-manager and traefik are installed")
+		os.Exit(1)
+	}
 
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
